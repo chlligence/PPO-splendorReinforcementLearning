@@ -1,0 +1,44 @@
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ── Virtual Environment ──
+.venv/
+venv/
+env/
+
+# ── Model Checkpoints & Logs (large binaries) ──
+checkpoints/
+logs/
+
+# ── Testing ──
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ── IDE / Editor ──
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Claude ──
+.claude/
+
+# ── OS ──
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# ── Jupyter ──
+.ipynb_checkpoints/
+*.ipynb
+
+# ── Environment ──
+.env
+.env.local
