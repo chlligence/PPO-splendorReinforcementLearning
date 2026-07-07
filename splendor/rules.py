@@ -218,10 +218,10 @@ def can_afford(tokens: np.ndarray, bonuses: np.ndarray,
 def _auto_discard_if_needed(state: GameState, player_idx: int) -> None:
     """Automatically discard tokens if player exceeds MAX_TOTAL_TOKENS.
 
-    Discard priority:
-        1. Gold first (most flexible, replaceable via reserve)
-        2. Colours with highest count
-        3. Tiebreak: BLACK → WHITE → RED → BLUE → GREEN
+    Discard priority (least valuable → most valuable):
+        1. Colours with highest count (excess of one colour is least useful)
+        2. Tiebreak among colours: BLACK → WHITE → RED → BLUE → GREEN
+        3. Gold LAST (万能, most valuable — substitutes any colour)
     This is deterministic so the agent can learn to manage tokens.
     """
     p = state.players[player_idx]
@@ -229,27 +229,28 @@ def _auto_discard_if_needed(state: GameState, player_idx: int) -> None:
     excess = total - MAX_TOTAL_TOKENS
 
     while excess > 0:
-        # Priority 1: discard gold if we have any
+        # Priority 1-2: discard colour with most tokens, tiebreak by index
+        max_count = 0
+        discard_color = -1
+        for c in range(NUM_COLORS):
+            if p.tokens[c] > max_count:
+                max_count = int(p.tokens[c])
+                discard_color = c
+
+        if max_count > 0:
+            p.tokens[discard_color] -= 1
+            state.gems_available[discard_color] += 1
+            excess -= 1
+            continue
+
+        # Priority 3: only discard gold when all colours are at 0
         if p.tokens[Gem.GOLD] > 0:
             p.tokens[Gem.GOLD] -= 1
             state.gems_available[Gem.GOLD] += 1
             excess -= 1
             continue
 
-        # Priority 2-3: discard colour with most tokens, tiebreak by index
-        max_count = 0
-        discard_color = 0
-        for c in range(NUM_COLORS):
-            if p.tokens[c] > max_count:
-                max_count = int(p.tokens[c])
-                discard_color = c
-
-        if max_count == 0:
-            break  # Should not happen, but safe
-
-        p.tokens[discard_color] -= 1
-        state.gems_available[discard_color] += 1
-        excess -= 1
+        break  # Should not happen, but safe
 
 
 # ---------------------------------------------------------------------------

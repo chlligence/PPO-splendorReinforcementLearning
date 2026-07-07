@@ -175,7 +175,7 @@ Card(card_id, level, bonus: Gem, points, cost: tuple[5])
 若final_round_flag已触发且轮到触发者 → 游戏结束
 ```
 
-**弃牌逻辑** (`_auto_discard_if_needed`)：回合结束筹码 > 10 时自动弃牌。优先级：(1)黄金 → (2)数量最多的颜色 → (3)BLACK>WHITE>RED>BLUE>GREEN。确定性策略，智能体可学习适应。
+**弃牌逻辑** (`_auto_discard_if_needed`)：回合结束筹码 > 10 时自动弃牌。优先级（价值从低到高弃）：(1)数量最多的颜色 → (2)颜色固定顺序 BLACK>WHITE>RED>BLUE>GREEN → (3)黄金最后（万能筹码，价值最高）。确定性策略，智能体可学习适应。
 
 #### `splendor/action_mask.py` — 动作掩码
 
@@ -447,7 +447,7 @@ python tests/test_env.py
 | 2a | 取3不同色宝石 | `rules.py:_take_3_different` | C(5,3)=10 组合，各取1 |
 | 2b | 取2同色（需≥4存量） | `action_mask.py:10-14` | `mask[10+c] = gems[c]>=4` |
 | 3 | 留牌上限3张+获金 | `rules.py:_add_reserved_card` | `len(reserved)<3` 检查+金余量检查 |
-| 4 | 筹码上限10枚 | `rules.py:_auto_discard_if_needed` | 超10自动弃，优先金→最高色→固定顺序 |
+| 4 | 筹码上限10枚 | `rules.py:_auto_discard_if_needed` | 超10自动弃，优先最高色→固定顺序→金最后 |
 | 5 | Bonus永久折扣 | `rules.py:_purchase_card` | `effective_cost = max(0, cost-bonus)` |
 | 6a | 15分触发终局 | `rules.py:check_game_end` | P0触发→P1最后一动；P1触发→立即结束 |
 | 6b | 平局少牌者胜 | `rules.py:_determine_winner` | points→card_count→draw |
