@@ -23,7 +23,9 @@ class PoolEntry:
     path: str               # Checkpoint file path
     generation: int         # Generation number when created
     elo: float = 1200.0     # Estimated ELO rating
-    win_rate_vs_prev: float = 0.5  # Win rate vs previous best when added
+    win_rate_vs_prev: Optional[float] = None  # Win rate vs previous best when added (None for gen 0 — no prior opponent)
+    elo_source: str = "baseline"       # "full_eval" | "incremental_vs_latest" | "baseline"
+    win_rate_source: str = "baseline"  # "full_eval" | "cheap_vs_latest" | "baseline"
 
 
 class OpponentPool:
@@ -63,9 +65,12 @@ class OpponentPool:
         """
         self.entries.append(entry)
         if len(self.entries) > self.max_size:
-            # Remove entry with lowest ELO (keep diversity by ELO spread)
-            self.entries.sort(key=lambda e: e.elo)
-            removed = self.entries.pop(0)
+            # Remove entry with lowest ELO (keep diversity by ELO spread).
+            # Uses min()+remove() rather than sort()+pop(0) so insertion
+            # order (== generation order) is never disturbed — callers
+            # rely on that order via get_latest_entry().
+            removed = min(self.entries, key=lambda e: e.elo)
+            self.entries.remove(removed)
             print(f"  [Pool] Removed gen {removed.generation} "
                   f"(ELO: {removed.elo:.0f}) — pool at {len(self.entries)}")
 
@@ -89,7 +94,7 @@ class OpponentPool:
 
         if roll < self.latest_prob:
             # Return the most recent entry
-            return self.entries[-1]
+            return self.get_latest_entry()
         elif roll < self.latest_prob + self.random_prob:
             # Uniform random
             idx = rng.integers(0, len(self.entries))
@@ -110,6 +115,31 @@ class OpponentPool:
             return 1200.0
         return max(e.elo for e in self.entries)
 
+    def get_latest_entry(self) -> Optional[PoolEntry]:
+        """Return the entry with the highest generation number, or None if empty.
+
+        Determined explicitly by `generation`, never by list position —
+        `self.entries` order is not a reliable proxy for recency once
+        eviction or any other reordering has occurred.
+        """
+        if not self.entries:
+            return None
+        return max(self.entries, key=lambda e: e.generation)
+
+    def get_max_generation(self) -> Optional[int]:
+        """Return the highest generation number in the pool, or None if empty."""
+        if not self.entries:
+            return None
+        return max(e.generation for e in self.entries)
+
+    def remove_generation(self, generation: int) -> None:
+        """Remove all entries for a given generation (deduplication)."""
+        before = len(self.entries)
+        self.entries = [e for e in self.entries if e.generation != generation]
+        if len(self.entries) < before:
+            print(f"  [Pool] Removed {before - len(self.entries)} duplicate(s) "
+                  f"for generation {generation}")
+
     def size(self) -> int:
         """Number of entries in the pool."""
         return len(self.entries)
@@ -127,6 +157,8 @@ class OpponentPool:
                 "generation": e.generation,
                 "elo": e.elo,
                 "win_rate_vs_prev": e.win_rate_vs_prev,
+                "elo_source": e.elo_source,
+                "win_rate_source": e.win_rate_source,
             })
         with open(path, "w") as f:
             json.dump(data, f, indent=2)
@@ -154,6 +186,8 @@ class OpponentPool:
                 path=checkpoint_path,
                 generation=d["generation"],
                 elo=d["elo"],
-                win_rate_vs_prev=d["win_rate_vs_prev"],
+                win_rate_vs_prev=d.get("win_rate_vs_prev"),
+                elo_source=d.get("elo_source", "baseline"),
+                win_rate_source=d.get("win_rate_source", "baseline"),
             ))
         print(f"  [Pool] Loaded {len(self.entries)} entries from {path}")

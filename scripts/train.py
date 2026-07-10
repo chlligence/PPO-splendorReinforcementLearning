@@ -73,8 +73,8 @@ def main():
     # Test mode: reduced settings
     if args.test:
         print("*** TEST MODE — Reduced training settings ***")
-        PPO_CONFIG["n_steps"] = 512
-        PPO_CONFIG["batch_size"] = 128
+        PPO_CONFIG["n_steps"] = 256
+        PPO_CONFIG["batch_size"] = 64
         SELFPLAY_CONFIG["n_envs"] = 4
         SELFPLAY_CONFIG["steps_per_generation"] = 50_000
         SELFPLAY_CONFIG["generations"] = 5

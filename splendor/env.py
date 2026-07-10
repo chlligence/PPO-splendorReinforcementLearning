@@ -34,7 +34,7 @@ class SplendorEnv(gym.Env):
     """Gymnasium environment for 2-player Splendor.
 
     Observation space: Box(203,) — flat float32 vector, all features in [0, 1].
-    Action space: Discrete(45) — with action masking via info["action_mask"].
+    Action space: Discrete(51) — with action masking via info["action_mask"].
 
     Usage:
         cards = load_cards("data/cards_data.xlsx")
@@ -53,6 +53,7 @@ class SplendorEnv(gym.Env):
         cards_by_level: Dict[int, List[Card]],
         render_mode: Optional[str] = None,
         starting_player: int = 0,
+        max_turns: int = 200,
     ):
         """Initialise the environment.
 
@@ -60,11 +61,13 @@ class SplendorEnv(gym.Env):
             cards_by_level: Card database from load_cards().
             render_mode: "ansi", "human", or None.
             starting_player: Which player goes first (0 or 1).
+            max_turns: Maximum turns before truncation (safety cap).
         """
         super().__init__()
         self.cards_by_level = cards_by_level
         self.render_mode = render_mode
         self.starting_player = starting_player
+        self.max_turns = max_turns
 
         # ---- Observation space ----
         self.observation_space = spaces.Box(
@@ -79,6 +82,12 @@ class SplendorEnv(gym.Env):
         # ---- Internal state ----
         self.state: Optional[GameState] = None
         self.rng = np.random.default_rng()
+
+    def action_masks(self):
+        """Return current action mask for sb3-contrib compatibility."""
+        if self.state is not None:
+            return get_action_mask(self.state, self.state.current_player)
+        return np.zeros(N_ACTIONS, dtype=bool)
 
     # ------------------------------------------------------------------
     # Gymnasium API
@@ -134,7 +143,7 @@ class SplendorEnv(gym.Env):
         """Execute one action and advance the game.
 
         Args:
-            action: Discrete action index (0–44).
+            action: Discrete action index (0–50).
 
         Returns:
             (observation, reward, terminated, truncated, info)
@@ -160,7 +169,15 @@ class SplendorEnv(gym.Env):
 
         # ---- Build return values ----
         terminated = self.state.game_over
-        truncated = False  # No time limit for Splendor
+        truncated = self.state.turn_number >= self.max_turns
+
+        # ---- Force termination when turn limit exceeded (defensive) ----
+        # Prevents infinite loops in consumers that only check `terminated`.
+        if truncated and not terminated:
+            from .rules import _determine_winner
+            self.state.game_over = True
+            self.state.winner = _determine_winner(self.state)
+            terminated = True
 
         # Observation for the NEXT player (or terminal state)
         next_player = self.state.current_player if not terminated else player_idx

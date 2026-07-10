@@ -1,13 +1,18 @@
 """Self-Play environment wrapper for Splendor.
 
 Wraps SplendorEnv to auto-play the opponent's turns. Only the agent's
-transitions are returned via step() — opponent transitions are discarded.
-This allows seamless integration with SB3's standard learn() loop.
+transitions are returned via step(). Opponent transitions are otherwise
+discarded, except that if the opponent's move ends the game, its terminal
+reward (negated, since reward.py's terminal value is zero-sum from the
+mover's perspective) is substituted for the agent's own stale pre-opponent
+reward — the game's real outcome is only observable from the last mover's
+step. This allows seamless integration with SB3's standard learn() loop.
 
 For SubprocVecEnv compatibility: pass opponent_model_path (string) rather
 than a loaded model. Each worker loads the model independently on init.
 """
 
+import io as _io
 import os
 from typing import Optional, Tuple, Union
 import numpy as np
@@ -47,11 +52,13 @@ class SelfPlayEnv(gym.Env):
         self,
         cards_path: str,
         opponent_model_path: Optional[str] = None,
+        opponent_policy_bytes: Optional[bytes] = None,
         agent_player_idx: int = 0,
         opponent_player_idx: Optional[int] = None,
         deterministic_opponent: bool = False,
         seed: Optional[int] = None,
         render_mode: Optional[str] = None,
+        max_turns: int = 200,
     ):
         """Initialise the self-play environment.
 
@@ -59,12 +66,16 @@ class SelfPlayEnv(gym.Env):
             cards_path: Path to cards_data.xlsx.
             opponent_model_path: Path to an SB3 MaskablePPO checkpoint, or None
                                  for a random opponent.
+            opponent_policy_bytes: Serialized policy module bytes (preferred —
+                                   avoids loading optimizer/buffer in each worker).
+                                   Takes precedence over opponent_model_path.
             agent_player_idx: Which player the training agent controls (0 or 1).
             opponent_player_idx: Which player the opponent controls.
                                  Defaults to 1 - agent_player_idx.
             deterministic_opponent: If True, opponent uses greedy policy.
             seed: Random seed for reproducibility.
             render_mode: Passed through to SplendorEnv.
+            max_turns: Maximum turns before truncation (safety cap).
         """
         super().__init__()
         self.agent_idx = agent_player_idx
@@ -83,14 +94,38 @@ class SelfPlayEnv(gym.Env):
             self.cards,
             render_mode=render_mode,
             starting_player=agent_player_idx,
+            max_turns=max_turns,
         )
 
         # Load opponent model if provided
         self.opponent = None
-        if opponent_model_path is not None and os.path.exists(opponent_model_path):
-            # Lazy import to avoid dependency issues if SB3 not installed
+        self._opponent_path = None
+        if opponent_policy_bytes is not None:
+            # Lightweight path: deserialize only the policy module (no
+            # optimizer state, no rollout buffer).  ~6 MB per worker vs
+            # ~40 MB for a full MaskablePPO.load() — critical when 20
+            # subprocess workers start simultaneously.
+            import torch
+            # Ensure pickle can resolve the custom feature extractor class
+            # inside the spawned subprocess.
+            from training.feature_extractor import SplendorFeatureExtractor  # noqa: F401
+            self.opponent = torch.load(
+                _io.BytesIO(opponent_policy_bytes), map_location="cpu",
+                weights_only=False,
+            )
+            # The policy was serialised from a model loaded with device="cpu",
+            # so self.opponent.device should already be "cpu".  In PyTorch ≥2.6
+            # nn.Module.device is a read-only property, so we bypass it via
+            # __dict__ if a fix-up is ever needed.
+            dev = self.opponent.__dict__.get("device", None)
+            if dev is not None and str(dev) != "cpu":
+                self.opponent.__dict__["device"] = "cpu"
+        elif opponent_model_path is not None and os.path.exists(opponent_model_path):
             from sb3_contrib import MaskablePPO
-            self.opponent = MaskablePPO.load(opponent_model_path)
+            # device="cpu" forces all tensors to CPU regardless of save device
+            self.opponent = MaskablePPO.load(
+                opponent_model_path, device="cpu"
+            )
             self._opponent_path = opponent_model_path
 
         # Expose same spaces as inner env
@@ -102,6 +137,28 @@ class SelfPlayEnv(gym.Env):
         # For seeding
         self._seed = seed
         self.rng = np.random.default_rng(seed)
+
+    def __getstate__(self):
+        """Custom pickle: exclude non-picklable SB3 opponent model.
+
+        SubprocVecEnv workers pickle the env when returning get_attr results.
+        The opponent model contains torch modules which can't be pickled.
+        After unpickle, the opponent stays None — it's only needed in the
+        subprocess where the env was originally created.
+        """
+        state = self.__dict__.copy()
+        state["opponent"] = None
+        return state
+
+    def action_masks(self):
+        """Return current action mask for sb3-contrib compatibility.
+
+        MaskablePPO calls this via env_method('action_masks') to get masks
+        from all parallel environments during rollout collection.
+        """
+        if self.inner.state is not None:
+            return get_action_mask(self.inner.state, self.inner.state.current_player)
+        return np.ones(N_ACTIONS, dtype=bool)
 
     def reset(self, seed=None, options=None):
         """Reset the game. Agent starts first.
@@ -116,7 +173,7 @@ class SelfPlayEnv(gym.Env):
         # If opponent goes first (rare — only if agent_player_idx != 0 config),
         # auto-play opponent's first turn
         if self.inner.state.current_player != self.agent_idx:
-            obs, info = self._auto_play_opponent(obs, info)
+            obs, info, _, _ = self._auto_play_opponent(obs, info)
 
         return obs, info
 
@@ -134,18 +191,31 @@ class SelfPlayEnv(gym.Env):
         obs, reward, terminated, truncated, info = self.inner.step(action)
 
         # Auto-play opponent until it's agent's turn again or game ends
-        if not terminated:
-            obs, info = self._auto_play_opponent(obs, info)
+        if not terminated and not truncated:
+            obs, info, opp_reward, opp_ended = self._auto_play_opponent(obs, info)
             # Check if game ended during opponent's turn
             terminated = self.inner.state.game_over
+            if opp_ended:
+                # The opponent's move ended the game, so the real outcome
+                # only exists on the opponent's side of that step — the
+                # agent's own last `reward` above is just a stale dense
+                # shaping value from before the opponent moved. reward.py's
+                # terminal value is zero-sum from the mover's perspective
+                # (+1/-1/0 for win/loss/draw), so negate it for the agent.
+                reward = -opp_reward
 
         return obs, reward, terminated, truncated, info
 
     def _auto_play_opponent(self, obs, info):
         """Auto-play opponent turns until it's the agent's turn again.
 
-        Returns the observation and info for the agent's next turn.
+        Returns (obs, info, last_reward, game_ended). `last_reward` is the
+        reward returned by the opponent's final step and is only meaningful
+        when `game_ended` is True (it's then the terminal outcome from the
+        opponent's perspective).
         """
+        last_reward = 0.0
+        game_ended = False
         while (not self.inner.state.game_over
                and self.inner.state.current_player != self.agent_idx):
             opp_idx = self.inner.state.current_player
@@ -165,14 +235,15 @@ class SelfPlayEnv(gym.Env):
                     legal = np.array([50])  # fallback to pass
                 opp_action = self.rng.choice(legal)
 
-            obs, reward, terminated, truncated, info = self.inner.step(
+            obs, last_reward, terminated, truncated, info = self.inner.step(
                 int(opp_action)
             )
 
-            if terminated:
+            if terminated or truncated:
+                game_ended = True
                 break
 
-        return obs, info
+        return obs, info, last_reward, game_ended
 
     def render(self):
         """Render the current game state."""
@@ -187,16 +258,20 @@ class SelfPlayEnv(gym.Env):
 def make_env_fn(
     cards_path: str,
     opponent_model_path: Optional[str],
+    opponent_policy_bytes: Optional[bytes] = None,
     agent_player_idx: int = 0,
     rank: int = 0,
+    max_turns: int = 200,
 ):
     """Factory function for SubprocVecEnv.
 
     Args:
         cards_path: Path to cards_data.xlsx.
         opponent_model_path: Path to opponent checkpoint (or None).
+        opponent_policy_bytes: Pre-serialized policy module bytes (preferred).
         agent_player_idx: Agent's player index.
         rank: Environment rank (used for seeding).
+        max_turns: Maximum turns before truncation.
 
     Returns:
         A callable that creates a SelfPlayEnv.
@@ -205,7 +280,9 @@ def make_env_fn(
         return SelfPlayEnv(
             cards_path=cards_path,
             opponent_model_path=opponent_model_path,
+            opponent_policy_bytes=opponent_policy_bytes,
             agent_player_idx=agent_player_idx,
             seed=rank,
+            max_turns=max_turns,
         )
     return _init

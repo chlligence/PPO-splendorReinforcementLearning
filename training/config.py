@@ -21,16 +21,16 @@ os.makedirs(LOG_DIR, exist_ok=True)
 
 # ---- PPO Hyperparameters ----
 PPO_CONFIG = {
-    "n_steps": 2048,            # Steps per environment per rollout
-    "batch_size": 512,          # Minibatch size
-    "n_epochs": 10,             # PPO epochs per update
-    "learning_rate": 3e-4,
+    "n_steps": 1024,            # Steps per environment per rollout (halved for 2× update frequency)
+    "batch_size": 256,          # Minibatch size (reduced proportionally with n_steps)
+    "n_epochs": 4,              # PPO epochs per update (reduced from 5 — less aggressive reuse)
+    "learning_rate": 5e-5,      # (halved from 1e-4 — reduces clip_fraction and approx_kl)
     "gamma": 0.99,
-    "gae_lambda": 0.95,
-    "clip_range": 0.2,
-    "ent_coef": 0.01,           # Initial entropy coefficient
-    "vf_coef": 0.5,
-    "max_grad_norm": 1.0,
+    "gae_lambda": 0.92,         # (reduced from 0.95 — lower advantage variance)
+    "clip_range": 0.15,         # (reduced from 0.2 — tighter trust region)
+    "ent_coef": 0.01,           # Initial entropy coefficient (overridden by anneal schedule)
+    "vf_coef": 0.75,            # (increased from 0.5 — stronger value function learning)
+    "max_grad_norm": 0.5,       # (reduced from 1.0 — tighter gradient clipping)
     "device": "cuda",           # "cuda" or "cpu"
 }
 
@@ -48,12 +48,14 @@ SELFPLAY_CONFIG = {
     "generations": 50,                   # Total training generations
     "steps_per_generation": 500_000,     # Environment steps per generation
     "opponent_pool_size": 20,            # Max entries in opponent pool
-    "eval_games": 200,                   # Head-to-head games for ELO evaluation
-    "eval_interval_generations": 2,     # Evaluate every N generations
+    "eval_games": 100,                   # Head-to-head games for ELO evaluation (reduced from 200)
+    "eval_interval_generations": 5,     # Run the full (expensive) evaluation every N generations
+    "cheap_eval_games": 15,              # Match-pairs for the cheap per-generation win-rate/ELO check
+    "cheap_elo_k": 16.0,                 # Smaller K-factor for the low-sample cheap ELO update
     "save_interval_generations": 1,      # Save checkpoint every N generations
-    "ent_start": 0.05,                   # Starting entropy coefficient (gen 0)
-    "ent_end": 0.005,                    # Final entropy coefficient
-    "ent_anneal_generations": 10,        # Generations to anneal entropy
+    "ent_start": 0.08,                   # Starting entropy coefficient (increased from 0.05)
+    "ent_end": 0.01,                     # Final entropy coefficient (increased from 0.005)
+    "ent_anneal_generations": 30,        # Generations to anneal entropy (extended from 20)
     "random_opponent_prob": 0.10,        # Probability of random opponent (diversity)
     "latest_opponent_prob": 0.50,        # Probability of latest opponent
 }

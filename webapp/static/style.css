@@ -1,0 +1,305 @@
+:root {
+  --c-black: #2b2b2b;
+  --c-white: #f6f1e3;
+  --c-red: #c0392b;
+  --c-blue: #2f6fb0;
+  --c-green: #2e8b57;
+  --c-gold: #d4a017;
+  --bg: #0f3d2e;
+  --panel: #14493a;
+  font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: #eee;
+  min-height: 100vh;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  background: #0a2a20;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.topbar h1 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.topbar .sub {
+  font-size: 13px;
+  opacity: 0.7;
+  font-weight: normal;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 14px;
+  background: #d4a017;
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+button:hover { filter: brightness(1.1); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+select {
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: none;
+}
+
+.status-bar {
+  padding: 6px 20px;
+  background: #123a2d;
+  font-size: 14px;
+  min-height: 20px;
+}
+
+.status-bar .ai-log {
+  color: #ffd479;
+}
+
+.board {
+  padding: 16px 20px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.gems-row {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.gem-token {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  border: 3px solid rgba(255,255,255,0.25);
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+
+.gem-token.selected {
+  outline: 3px solid #fff;
+  transform: translateY(-4px);
+}
+.gem-token.disabled { cursor: not-allowed; opacity: 0.35; }
+
+.gem-token .count { font-size: 18px; }
+.gem-token .sel-badge {
+  position: absolute; top: -8px; right: -8px;
+  background: #fff; color: #111; border-radius: 50%;
+  width: 20px; height: 20px; font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.gem-black { background: var(--c-black); color: #eee; }
+.gem-white { background: var(--c-white); color: #222; }
+.gem-red { background: var(--c-red); color: #fff; }
+.gem-blue { background: var(--c-blue); color: #fff; }
+.gem-green { background: var(--c-green); color: #fff; }
+.gem-gold { background: var(--c-gold); color: #1a1a1a; }
+
+.take-panel {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  min-height: 30px;
+  font-size: 14px;
+}
+
+.level-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: var(--panel);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.deck-back {
+  width: 74px;
+  height: 100px;
+  border-radius: 8px;
+  background: repeating-linear-gradient(45deg, #333, #333 6px, #3d3d3d 6px, #3d3d3d 12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  border: 2px solid rgba(255,255,255,0.15);
+}
+.deck-back.disabled { cursor: not-allowed; opacity: 0.45; }
+.deck-back .label { font-size: 12px; text-align: center; }
+
+.cards-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.card {
+  width: 90px;
+  height: 120px;
+  border-radius: 8px;
+  background: #fbf7ec;
+  color: #222;
+  position: relative;
+  cursor: pointer;
+  overflow: hidden;
+  border: 2px solid rgba(0,0,0,0.2);
+  flex-shrink: 0;
+}
+.card.legal { box-shadow: 0 0 0 3px #ffd479; }
+.card.empty {
+  background: rgba(255,255,255,0.05);
+  border: 2px dashed rgba(255,255,255,0.2);
+  cursor: default;
+  box-shadow: none;
+}
+
+.card .top-bar {
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.card .cost {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  right: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.cost-pip {
+  font-size: 10px;
+  border-radius: 4px;
+  padding: 1px 4px;
+  color: #fff;
+  font-weight: 700;
+}
+
+.reserved-back {
+  width: 60px;
+  height: 80px;
+  border-radius: 6px;
+  background: repeating-linear-gradient(45deg, #444, #444 5px, #4d4d4d 5px, #4d4d4d 10px);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: #ccc;
+  flex-shrink: 0;
+}
+
+.players-row {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.player-panel {
+  flex: 1;
+  min-width: 280px;
+  background: var(--panel);
+  border-radius: 10px;
+  padding: 12px;
+}
+.player-panel.active-turn { outline: 2px solid #ffd479; }
+
+.player-panel h3 {
+  margin: 0 0 8px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.mini-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.mini-chip {
+  font-size: 12px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  color: #fff;
+  font-weight: 600;
+}
+
+.reserved-cards, .purchased-cards {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.overlay, .game-over {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+.hidden { display: none !important; }
+
+.overlay-card, .game-over-card {
+  background: #14493a;
+  border-radius: 10px;
+  padding: 20px;
+  min-width: 260px;
+  text-align: center;
+}
+
+.overlay-title { margin-bottom: 12px; font-weight: 600; }
+.overlay-buttons { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.overlay-cancel { background: #555; color: #fff; }
+
+.game-over-card { font-size: 20px; }
+.game-over-card button { margin-top: 14px; }
+
+.bg-black { background: var(--c-black); }
+.bg-white { background: var(--c-white); color: #222; }
+.bg-red { background: var(--c-red); }
+.bg-blue { background: var(--c-blue); }
+.bg-green { background: var(--c-green); }
+.bg-gold { background: var(--c-gold); color: #222; }
