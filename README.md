@@ -3,20 +3,20 @@
 ---
 ##0.快速开始
 
-cd D:\ReinforcementLearning\SPLENSOR\splendor_20260706
+cd 
 
-# 激活虚拟环境
-# 或Windows CMD:
+激活虚拟环境
+ 或Windows CMD:
 .venv\Scripts\activate.bat
 
-# 或 PowerShell:
+#或 PowerShell:
 .venv\Scripts\Activate.ps1
 
-# 安装所有依赖
+#安装所有依赖
 pip install -r requirements.txt
 
 
-checkpoints中的50个zip文件是训练好的模型，通过修改/webapp/server.py:23行中的CHECKPOINT_PATH = os.path.join(PROJECT_ROOT, "checkpoints", "agent_latest.zip")最后一个参数即可选择加载不同代数的模型（这里显示的是最新代，50代的模型）。
+**checkpoints中的50个zip文件是训练好的模型，通过修改/webapp/server.py:23行中的CHECKPOINT_PATH = os.path.join(PROJECT_ROOT, "checkpoints", "agent_latest.zip")最后一个参数即可选择加载不同代数的模型（这里显示的是最新代，50代的模型）。
 
 启动server.py后，访问127.0.0.1:5000开始ui界面璀璨宝石人机对战。
 
