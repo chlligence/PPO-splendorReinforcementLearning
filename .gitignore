@@ -12,7 +12,8 @@ venv/
 env/
 
 # ── Model Checkpoints & Logs (large binaries) ──
-checkpoints/
+checkpoints/**/*.zip
+!checkpoints/agent_latest.zip
 logs/
 
 # ── Testing ──

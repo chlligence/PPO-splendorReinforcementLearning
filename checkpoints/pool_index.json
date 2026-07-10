@@ -1,0 +1,122 @@
+[
+  {
+    "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_26.zip",
+    "generation": 26,
+    "elo": 1450.0,
+    "win_rate_vs_prev": 0.5
+  },
+  {
+    "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_27.zip",
+    "generation": 27,
+    "elo": 1460.0,
+    "win_rate_vs_prev": 0.5
+  },
+  {
+    "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_28.zip",
+    "generation": 28,
+    "elo": 1470.0,
+    "win_rate_vs_prev": 0.5
+  },
+  {
+    "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_29.zip",
+    "generation": 29,
+    "elo": 1480.0,
+    "win_rate_vs_prev": 0.5
+  },
+  {
+    "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_31.zip",
+    "generation": 31,
+    "elo": 1490.0,
+    "win_rate_vs_prev": 0.5
+  },
+  {
+    "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_32.zip",
+    "generation": 32,
+    "elo": 1500.0,
+    "win_rate_vs_prev": 0.5
+  },
+  {
+    "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_33.zip",
+    "generation": 33,
+    "elo": 1510.0,
+    "win_rate_vs_prev": 0.5
+  },
+  {
+    "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_34.zip",
+    "generation": 34,
+    "elo": 1520.0,
+    "win_rate_vs_prev": 0.5
+  },
+  {
+    "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_36.zip",
+    "generation": 36,
+    "elo": 1530.0,
+    "win_rate_vs_prev": 0.5
+  },
+  {
+    "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_37.zip",
+    "generation": 37,
+    "elo": 1540.0,
+    "win_rate_vs_prev": 0.5
+  },
+  {
+    "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_38.zip",
+    "generation": 38,
+    "elo": 1550.0,
+    "win_rate_vs_prev": 0.5
+  },
+  {
+    "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_39.zip",
+    "generation": 39,
+    "elo": 1560.0,
+    "win_rate_vs_prev": 0.5
+  },
+  {
+    "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_41.zip",
+    "generation": 41,
+    "elo": 1570.0,
+    "win_rate_vs_prev": 0.5
+  },
+  {
+    "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_42.zip",
+    "generation": 42,
+    "elo": 1580.0,
+    "win_rate_vs_prev": 0.5
+  },
+  {
+    "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_43.zip",
+    "generation": 43,
+    "elo": 1590.0,
+    "win_rate_vs_prev": 0.5
+  },
+  {
+    "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_44.zip",
+    "generation": 44,
+    "elo": 1600.0,
+    "win_rate_vs_prev": 0.5
+  },
+  {
+    "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_46.zip",
+    "generation": 46,
+    "elo": 1610.0,
+    "win_rate_vs_prev": 0.5
+  },
+  {
+    "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_47.zip",
+    "generation": 47,
+    "elo": 1620.0,
+    "win_rate_vs_prev": 0.5
+  },
+  {
+    "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_48.zip",
+    "generation": 48,
+    "elo": 1630.0,
+    "win_rate_vs_prev": 0.5
+  },
+  {
+    "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_49.zip",
+    "generation": 49,
+    "elo": 1640.0,
+    "win_rate_vs_prev": 0.5
+  }
+]
