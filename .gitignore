@@ -44,3 +44,4 @@ Desktop.ini
 .env.local
 
 training-issue/
+webapp/**/*.bmp

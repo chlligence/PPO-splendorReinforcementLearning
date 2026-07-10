@@ -261,9 +261,11 @@ def check_game_end(state: GameState) -> None:
     """Check and update game-over state after each action.
 
     Logic (2-player, equal-turns rule):
+      - Uses turn_number parity to determine equal-turns status regardless
+        of which player started first.
       - If a player reaches >= WINNING_POINTS and final_round_flag is NOT set:
-          * If it was Player 0 (first): set flag, P1 gets one more turn.
-          * If it was Player 1 (second): game ends immediately.
+          * turn_number even → just_acted has extra turn → opponent gets final turn.
+          * turn_number odd  → equal turns already → game ends immediately.
       - If final_round_flag IS already set:
           * This means the extra turn just completed → game ends now.
     """
@@ -277,12 +279,18 @@ def check_game_end(state: GameState) -> None:
         return
 
     if p.points >= WINNING_POINTS:
-        if just_acted == 0:
-            # First player triggered → P1 gets one more turn
+        # Equal-turns rule (2-player): use turn_number parity instead of
+        # hardcoded player indices so the logic is correct regardless of
+        # which player started first.
+        #   turn_number even → just_acted has one more turn than opponent
+        #       → opponent gets a final turn.
+        #   turn_number odd  → both have had equal turns → game ends now.
+        if state.turn_number % 2 == 0:
+            # The player who just acted has an extra turn; opponent gets one more
             state.final_round_flag = True
-            state.final_round_player = 0
+            state.final_round_player = just_acted
         else:
-            # Second player triggered → game ends immediately (equal turns)
+            # Equal turns already — game ends immediately
             state.game_over = True
             state.winner = _determine_winner(state)
 
