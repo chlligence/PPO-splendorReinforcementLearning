@@ -1,7 +1,7 @@
 # Splendor (璀璨宝石) 强化学习训练项目 — 说明文档
 
 ---
-##0.快速开始
+## 快速开始
 
 cd 
 
@@ -14,6 +14,8 @@ cd
 
 #安装所有依赖
 pip install -r requirements.txt
+
+
 
 
 **checkpoints中的50个zip文件是训练好的模型，通过修改/webapp/server.py:23行中的CHECKPOINT_PATH = os.path.join(PROJECT_ROOT, "checkpoints", "agent_latest.zip")最后一个参数即可选择加载不同代数的模型（这里显示的是最新代，50代的模型）。
