@@ -22,6 +22,9 @@ block" equilibrium against itself in self-play. This revision:
     rewarding hoarding, not usefulness).
 """
 
+
+#it is a branch test 
+
 import numpy as np
 
 from .constants import MAX_TOTAL_TOKENS, WINNING_POINTS
