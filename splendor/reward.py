@@ -59,25 +59,27 @@ def compute_reward(
     opp = state.players[1 - player_idx]
     opp_prev = prev_state.players[1 - player_idx]
 
-    # ---- 2. Dynamic Board Demand Analysis (高分牌主要颜色需求分析) ----
-    # 扫描动作执行前版面（prev_state）上 Tier 2 和 Tier 3 的高分卡，计算各颜色的稀缺度/需求度
-    demand_weights = np.zeros(5, dtype=np.float32)
-    for level in [2, 3]:
-        face_up_list = prev_state.face_up.get(level, [])
-        for card in face_up_list:
-            if card is not None and card.points > 0:
-                for c in range(5):
-                    # 核心逻辑：将卡牌的各颜色成本乘以其自身的分数，权重向高分核心卡严重倾斜
-                    demand_weights[c] += card.cost[c] * card.points
-
-    # 归一化需求向量，使其转化为购买导向的分布概率（和为1.0），防止奖励数值爆炸
-    total_demand = np.sum(demand_weights)
-    if total_demand > 0:
-        demand_weights = demand_weights / total_demand
-
-    # ---- 3. Infrastructure & Strategic Potential Function (综合资产势能函数) ----
+    # ---- 2. Infrastructure & Strategic Potential Function (综合资产势能函数) ----
     def get_strategic_potential(game_state, player, bonuses_array):
         """评估当前玩家资产的综合战略价值"""
+        # ---- 2a. Dynamic Board Demand Analysis (高分牌主要颜色需求分析) ----
+        # 扫描当前 game_state 版面上 Tier 2 和 Tier 3 的高分卡，计算各颜色的稀缺度/需求度。
+        # 注意：这个计算已移入函数内部，确保每次调用都使用正确的 game_state 版面，
+        # 避免 prev/curr_margin 计算时共用 prev_state 的过期需求权重。
+        demand_weights = np.zeros(5, dtype=np.float32)
+        for level in [2, 3]:
+            face_up_list = game_state.face_up.get(level, [])
+            for card in face_up_list:
+                if card is not None and card.points > 0:
+                    for c in range(5):
+                        # 核心逻辑：将卡牌的各颜色成本乘以其自身的分数，权重向高分核心卡严重倾斜
+                        demand_weights[c] += card.cost[c] * card.points
+
+        # 归一化需求向量，使其转化为购买导向的分布概率（和为1.0），防止奖励数值爆炸
+        total_demand = np.sum(demand_weights)
+        if total_demand > 0:
+            demand_weights = demand_weights / total_demand
+
         # 基础分权重 (绝对核心目标)
         pt_score = player.points * 1.0
 
