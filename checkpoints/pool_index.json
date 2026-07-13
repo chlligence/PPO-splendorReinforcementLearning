@@ -1,0 +1,245 @@
+{
+  "format_version": 2,
+  "entries": [
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_63.zip",
+      "generation": 63,
+      "elo": 1224.6863739581893,
+      "win_rate_vs_prev": 0.575,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_64.zip",
+      "generation": 64,
+      "elo": 1224.8863739581893,
+      "win_rate_vs_prev": 0.5,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_72.zip",
+      "generation": 72,
+      "elo": 1226.8271460864817,
+      "win_rate_vs_prev": 0.6375,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_73.zip",
+      "generation": 73,
+      "elo": 1227.2271460864818,
+      "win_rate_vs_prev": 0.525,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_74.zip",
+      "generation": 74,
+      "elo": 1226.8271460864817,
+      "win_rate_vs_prev": 0.475,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_75.zip",
+      "generation": 75,
+      "elo": 1227.9271460864816,
+      "win_rate_vs_prev": 0.5625,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_76.zip",
+      "generation": 76,
+      "elo": 1228.9271460864816,
+      "win_rate_vs_prev": 0.5625,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_77.zip",
+      "generation": 77,
+      "elo": 1229.5271460864815,
+      "win_rate_vs_prev": 0.5375,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_78.zip",
+      "generation": 78,
+      "elo": 1229.1271460864814,
+      "win_rate_vs_prev": 0.4625,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_79.zip",
+      "generation": 79,
+      "elo": 1229.2271460864813,
+      "win_rate_vs_prev": 0.5,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_80.zip",
+      "generation": 80,
+      "elo": 1234.0255888261258,
+      "win_rate_vs_prev": 0.51,
+      "elo_source": "full_eval",
+      "win_rate_source": "full_eval"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_81.zip",
+      "generation": 81,
+      "elo": 1235.6255888261257,
+      "win_rate_vs_prev": 0.6,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_82.zip",
+      "generation": 82,
+      "elo": 1236.4255888261257,
+      "win_rate_vs_prev": 0.55,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_83.zip",
+      "generation": 83,
+      "elo": 1234.2255888261257,
+      "win_rate_vs_prev": 0.3625,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_84.zip",
+      "generation": 84,
+      "elo": 1233.2255888261257,
+      "win_rate_vs_prev": 0.4375,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_85.zip",
+      "generation": 85,
+      "elo": 1233.9255888261257,
+      "win_rate_vs_prev": 0.5375,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_86.zip",
+      "generation": 86,
+      "elo": 1232.3255888261258,
+      "win_rate_vs_prev": 0.3875,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_87.zip",
+      "generation": 87,
+      "elo": 1230.9255888261257,
+      "win_rate_vs_prev": 0.4125,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_88.zip",
+      "generation": 88,
+      "elo": 1231.6255888261257,
+      "win_rate_vs_prev": 0.5375,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_89.zip",
+      "generation": 89,
+      "elo": 1232.6255888261257,
+      "win_rate_vs_prev": 0.5625,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_90.zip",
+      "generation": 90,
+      "elo": 1231.7096122395735,
+      "win_rate_vs_prev": 0.46,
+      "elo_source": "full_eval",
+      "win_rate_source": "full_eval"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_91.zip",
+      "generation": 91,
+      "elo": 1229.7096122395735,
+      "win_rate_vs_prev": 0.375,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_92.zip",
+      "generation": 92,
+      "elo": 1229.8096122395734,
+      "win_rate_vs_prev": 0.5,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_93.zip",
+      "generation": 93,
+      "elo": 1229.6096122395734,
+      "win_rate_vs_prev": 0.475,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_94.zip",
+      "generation": 94,
+      "elo": 1229.9096122395733,
+      "win_rate_vs_prev": 0.5125,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_95.zip",
+      "generation": 95,
+      "elo": 1230.5096122395732,
+      "win_rate_vs_prev": 0.5375,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_96.zip",
+      "generation": 96,
+      "elo": 1231.6096122395732,
+      "win_rate_vs_prev": 0.5625,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_97.zip",
+      "generation": 97,
+      "elo": 1232.1096122395732,
+      "win_rate_vs_prev": 0.525,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_98.zip",
+      "generation": 98,
+      "elo": 1232.1096122395732,
+      "win_rate_vs_prev": 0.5,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    },
+    {
+      "path": "D:\\ReinforcementLearning\\SPLENSOR\\splendor_20260706\\checkpoints\\agent_gen_99.zip",
+      "generation": 99,
+      "elo": 1232.0096122395732,
+      "win_rate_vs_prev": 0.4875,
+      "elo_source": "incremental_vs_latest",
+      "win_rate_source": "cheap_vs_latest"
+    }
+  ]
+}

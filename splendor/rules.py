@@ -2,6 +2,16 @@
 
 All functions take and modify GameState in-place. No side effects beyond
 the state object. This keeps the logic testable and the env thin.
+
+Known rule-fidelity gaps (intentional — don't affect self-play consistency):
+  1. No "take 2 different colours" action.  The real game allows this when
+     only 2 colours remain on the board.  At 8 tokens, "take only 2 to avoid
+     discarding" is a real skill — our agent can only take 3 then rely on the
+     heuristic auto-discard.
+  2. Token discard is handled by a deterministic heuristic (discard most
+     abundant colour first, gold last).  The real game lets the player choose
+     which tokens to discard (including gold).  This limits transfer to human
+     play but produces consistent, learnable behaviour in self-play.
 """
 
 from typing import Optional

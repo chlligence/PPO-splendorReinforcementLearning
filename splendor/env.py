@@ -27,7 +27,7 @@ from .game_state import (
 from .rules import execute_action, check_game_end, can_afford
 from .action_mask import get_action_mask, get_action_description, N_ACTIONS
 from .observation import build_observation, OBS_DIM
-from .reward import compute_reward
+from .rewardcc import compute_reward
 
 
 class SplendorEnv(gym.Env):
@@ -54,6 +54,7 @@ class SplendorEnv(gym.Env):
         render_mode: Optional[str] = None,
         starting_player: int = 0,
         max_turns: int = 200,
+        shaping_gamma: float = 0.99,
     ):
         """Initialise the environment.
 
@@ -62,12 +63,15 @@ class SplendorEnv(gym.Env):
             render_mode: "ansi", "human", or None.
             starting_player: Which player goes first (0 or 1).
             max_turns: Maximum turns before truncation (safety cap).
+            shaping_gamma: Discount factor for PBRS shaping. MUST equal the
+                PPO trainer's gamma for the policy-invariance guarantee.
         """
         super().__init__()
         self.cards_by_level = cards_by_level
         self.render_mode = render_mode
         self.starting_player = starting_player
         self.max_turns = max_turns
+        self.shaping_gamma = shaping_gamma
 
         # ---- Observation space ----
         self.observation_space = spaces.Box(
@@ -156,28 +160,33 @@ class SplendorEnv(gym.Env):
         # ---- Execute action ----
         execute_action(self.state, player_idx, action)
 
-        # ---- Check game end ----
+        # ---- Check natural game end (15-pt trigger / final round) ----
         check_game_end(self.state)
-
-        # ---- Compute reward for the player who just acted ----
-        reward = compute_reward(prev_state, self.state, action, player_idx)
 
         # ---- Switch turns (if game continues) ----
         if not self.state.game_over:
             self.state.current_player = 1 - self.state.current_player
             self.state.turn_number += 1
 
-        # ---- Build return values ----
-        terminated = self.state.game_over
+        # ---- Force termination when turn limit exceeded ----
+        # Must happen BEFORE compute_reward so the ±10 terminal reward is
+        # correctly issued for truncated games (previously the truncation
+        # happened after reward computation, so games hitting the 200-turn
+        # cap only received dense shaping, never the win/loss outcome).
         truncated = self.state.turn_number >= self.max_turns
-
-        # ---- Force termination when turn limit exceeded (defensive) ----
-        # Prevents infinite loops in consumers that only check `terminated`.
-        if truncated and not terminated:
+        if truncated and not self.state.game_over:
             from .rules import _determine_winner
             self.state.game_over = True
             self.state.winner = _determine_winner(self.state)
-            terminated = True
+
+        # ---- Compute reward for the player who just acted ----
+        # Pass shaping_gamma explicitly so the PBRS term uses the SAME γ as
+        # the PPO trainer — the invariance guarantee depends on this match.
+        reward = compute_reward(prev_state, self.state, action, player_idx,
+                                gamma=self.shaping_gamma)
+
+        # ---- Build return values ----
+        terminated = self.state.game_over
 
         # Observation for the NEXT player (or terminal state)
         next_player = self.state.current_player if not terminated else player_idx

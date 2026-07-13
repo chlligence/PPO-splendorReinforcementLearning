@@ -224,10 +224,17 @@ class TestGameEnd:
         assert state.game_over is False  # P1 still gets a turn
 
     def test_p1_triggers_game_ends(self):
-        """P1 reaches 15: game ends immediately."""
+        """P1 reaches 15: game ends immediately.
+
+        In the normal game flow, P0 acts first (turn_number=0), then
+        turn_number is incremented to 1 before P1 acts.  With turn_number=1
+        (odd), the equal-turns rule triggers immediate game end because both
+        players have had an equal number of turns at that point.
+        """
         state = _make_state()
         state.players[1].points = 14
         state.current_player = 1
+        state.turn_number = 1  # P0 has already taken their first turn
 
         # Give P1 tokens and buy the 1-point card
         state.players[1].tokens = np.array([0, 0, 3, 0, 0, 0], dtype=np.int32)

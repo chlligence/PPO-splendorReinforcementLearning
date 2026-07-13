@@ -15,12 +15,20 @@ Usage:
     python scripts/train.py --test
 """
 
+# ---- Thread pinning: MUST execute before ANY other import ----
+# SubprocVecEnv on Windows uses spawn — child processes inherit the parent's
+# environment at spawn time.  Without these, each worker's numpy/MKL/OpenBLAS
+# defaults to using all 24 cores for every single-sample forward pass, creating
+# 20 × 24 = 480 threads fighting over 24 physical cores (typically 2× slowdown).
+import os as _os
+for _v in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"):
+    _os.environ.setdefault(_v, "1")
+
 import argparse
 import sys
-import os
 
 # Add project root to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
 
 from training.config import (
     CARDS_PATH, CHECKPOINT_DIR, LOG_DIR,
@@ -65,7 +73,7 @@ def main():
     args = parser.parse_args()
 
     # Validate paths
-    if not os.path.exists(args.cards):
+    if not _os.path.exists(args.cards):
         print(f"ERROR: Cards file not found: {args.cards}")
         print("Please ensure cards_data.xlsx is in the project root or data/ directory.")
         sys.exit(1)

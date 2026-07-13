@@ -9,8 +9,6 @@ import numpy as np
 
 from splendor.env import SplendorEnv
 from splendor.card import load_cards
-from splendor.action_mask import get_action_mask
-from splendor.observation import build_observation
 
 
 def evaluate_head_to_head(
@@ -46,19 +44,31 @@ def evaluate_head_to_head(
     b_wins = 0
     draws = 0
     total_turns = 0
+    # Track per-seat results for detecting seat asymmetry
+    a_wins_as_p0 = 0  # model_a won while sitting at P0
+    a_wins_as_p1 = 0  # model_a won while sitting at P1
 
     for match_idx in range(num_games):
         if match_idx > 0 and match_idx % 20 == 0:
             print(f"  [Eval] Game {match_idx}/{num_games}...")
 
-        # Game 1: model_a=P0, model_b=P1 (alternate starting player)
-        starting_player = match_idx % 2
-        obs, info = env.reset(seed=match_idx)
+        # Both games in a match pair share the SAME seed so the card shuffle
+        # is identical — the only difference is who sits where.  This cancels
+        # deck-draw luck rather than adding independent noise on top of it.
+        #
+        # P0 always starts first (matching training).  Alternating the starting
+        # player would inject OOD games: "P1-seat starts first" never occurs in
+        # the post-seat-fix training distribution, so it only adds noise.
+        #
+        # NOTE: seeds 0..N-1 are reused every generation — the same set of
+        # decks is evaluated each time.  This makes inter-generation win rates
+        # directly comparable with low variance, but all ELO estimates are
+        # conditioned on this particular set of decks.  For independent sampling
+        # across generations, use:  match_seed = generation * 100_000 + match_idx
+        match_seed = match_idx
 
-        # Override starting player after reset
-        env.state.current_player = starting_player
-        obs = build_observation(env.state, starting_player)
-        info["action_mask"] = get_action_mask(env.state, starting_player)
+        # Game 1: model_a=P0, model_b=P1
+        obs, info = env.reset(seed=match_seed)
 
         while True:
             current = env.state.current_player
@@ -83,6 +93,7 @@ def evaluate_head_to_head(
                 winner = env.state.winner
                 if winner == 0:
                     a_wins += 1
+                    a_wins_as_p0 += 1  # model_a sat at P0 in Game 1
                 elif winner == 1:
                     b_wins += 1
                 else:
@@ -90,12 +101,10 @@ def evaluate_head_to_head(
                 total_turns += env.state.turn_number
                 break
 
-        # Game 2: swap sides — model_b=P0, model_a=P1
-        obs, info = env.reset(seed=match_idx + 100000)
-
-        env.state.current_player = starting_player
-        obs = build_observation(env.state, starting_player)
-        info["action_mask"] = get_action_mask(env.state, starting_player)
+        # Game 2: swap sides — model_b=P0, model_a=P1.  Same seed → same
+        # card deal as Game 1, only the seat assignments are swapped.
+        # P0 still starts first (set by SplendorEnv default).
+        obs, info = env.reset(seed=match_seed)
 
         while True:
             current = env.state.current_player
@@ -121,6 +130,7 @@ def evaluate_head_to_head(
                     b_wins += 1  # model_b was P0
                 elif winner == 1:
                     a_wins += 1  # model_a was P1
+                    a_wins_as_p1 += 1
                 else:
                     draws += 1
                 total_turns += env.state.turn_number
@@ -135,6 +145,9 @@ def evaluate_head_to_head(
         "b_win_rate": b_wins / total_games,
         "draw_rate": draws / total_games,
         "avg_turns": total_turns / total_games,
+        # Per-seat breakdown: helps detect seat asymmetry in training
+        "a_wins_as_p0": a_wins_as_p0,
+        "a_wins_as_p1": a_wins_as_p1,
     }
 
 
@@ -148,7 +161,7 @@ def estimate_elo(
 ) -> float:
     """Estimate a model's ELO by playing against pool members.
 
-    Plays against the top 3 pool entries (by ELO) for calibration.
+    Plays against the top 2 pool entries (by ELO) for calibration.
 
     Args:
         model: Model to evaluate.
@@ -224,7 +237,7 @@ def evaluate_generation(
         }
 
     from sb3_contrib import MaskablePPO
-    latest_opp = MaskablePPO.load(latest_entry.path)
+    latest_opp = MaskablePPO.load(latest_entry.path, device="cpu")
 
     print("Cheap eval vs latest opponent...")
     cheap_results = evaluate_head_to_head(
@@ -232,6 +245,8 @@ def evaluate_generation(
     )
     win_rate_vs_prev = cheap_results["a_win_rate"]
     win_rate_source = "cheap_vs_latest"
+    print(f"  Per-seat: as P0={cheap_results['a_wins_as_p0']}/{cheap_eval_games} "
+          f"as P1={cheap_results['a_wins_as_p1']}/{cheap_eval_games}")
 
     expected = 1.0 / (1.0 + 10 ** ((latest_entry.elo - last_known_elo) / 400.0))
     actual = cheap_results["a_win_rate"] + 0.5 * cheap_results["draw_rate"]

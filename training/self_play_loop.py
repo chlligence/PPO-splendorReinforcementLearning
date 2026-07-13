@@ -118,6 +118,24 @@ def run_self_play(
         cards_path: Path to cards_data.xlsx.
         resume_from: Path to a checkpoint to resume from (optional).
     """
+    # ---- pool_index.json versioning ----
+    # OpponentPool.load_index() detects and rejects pre-seat-fix pools
+    # (bare-list format = v1).  New pools are saved with format_version=2.
+    # If you see a RuntimeError about old format, delete checkpoints/ and
+    # start fresh — old checkpoints are incompatible with the new training
+    # distribution.
+    pool_index_path = os.path.join(CHECKPOINT_DIR, "pool_index.json")
+
+    # ---- Config consistency checks ----
+    # PBRS invariance requires the shaping discount to match the PPO trainer's
+    # gamma exactly.  A mismatch silently breaks the telescoping-sum property.
+    ppo_gamma = PPO_CONFIG["gamma"]
+    env_gamma = ENV_CONFIG["shaping_gamma"]
+    assert abs(ppo_gamma - env_gamma) < 1e-9, (
+        f"PPO_CONFIG['gamma'] ({ppo_gamma}) != ENV_CONFIG['shaping_gamma'] "
+        f"({env_gamma}) — PBRS invariance broken!"
+    )
+
     print("=" * 60)
     print("Splendor Self-Play Training")
     print("=" * 60)
@@ -137,9 +155,10 @@ def run_self_play(
     pool = OpponentPool(
         max_size=SELFPLAY_CONFIG["opponent_pool_size"],
         latest_prob=SELFPLAY_CONFIG["latest_opponent_prob"],
-        random_prob=SELFPLAY_CONFIG["random_opponent_prob"],
+        uniform_prob=SELFPLAY_CONFIG["random_opponent_prob"],  # uniform from pool
+        random_action_prob=SELFPLAY_CONFIG["random_action_prob"],
+        elo_temperature=SELFPLAY_CONFIG["elo_temperature"],
     )
-    pool_index_path = os.path.join(CHECKPOINT_DIR, "pool_index.json")
     if os.path.exists(pool_index_path):
         pool.load_index(pool_index_path, CHECKPOINT_DIR)
 
@@ -148,6 +167,7 @@ def run_self_play(
     # Determine starting generation
     start_gen = 0
     agent_model = None
+    latest_path = os.path.join(CHECKPOINT_DIR, "agent_latest.zip")  # fallback
 
     if resume_from and os.path.exists(resume_from):
         from sb3_contrib import MaskablePPO
@@ -166,129 +186,132 @@ def run_self_play(
     latest_pool_entry = pool.get_latest_entry()
     last_known_elo = latest_pool_entry.elo if latest_pool_entry is not None else 1200.0
 
-    # ---- Main training loop ----
-    for generation in range(start_gen, SELFPLAY_CONFIG["generations"]):
-        gen_start_time = time.time()
-        print(f"\n{'='*60}")
-        print(f"Generation {generation + 1}/{SELFPLAY_CONFIG['generations']}")
-        print(f"{'='*60}")
+    # ---- Create persistent vectorized environments (once for all generations) ----
+    # On Windows (spawn mode), recreating SubprocVecEnv each generation costs
+    # 15–40 s of process-spawn + import overhead per generation.  Workers persist
+    # across generations; opponent weights are hot-swapped via env_method.
+    from stable_baselines3.common.vec_env import SubprocVecEnv
 
-        # 1. Sample opponent
-        opponent_entry = pool.sample(rng)
-        opponent_path = opponent_entry.path if opponent_entry else None
-        if opponent_entry:
-            print(f"Opponent: gen {opponent_entry.generation} "
-                  f"(ELO: {opponent_entry.elo:.0f})")
-        else:
-            print("Opponent: Random (no pool entries yet)")
-
-        # 1a. Serialise opponent policy to bytes (lightweight — no optimizer
-        #     state, no rollout buffer).  Each of the N subprocess workers
-        #     deserialises the same bytes independently, using ~6 MB per worker
-        #     instead of ~40 MB for a full MaskablePPO.load().
-        opponent_policy_bytes: Optional[bytes] = None
-        if opponent_path is not None:
-            import io as _io
-            import torch as _torch
-            from sb3_contrib import MaskablePPO as _MaskablePPO
-            _opp_full = _MaskablePPO.load(opponent_path, device="cpu")
-            _buf = _io.BytesIO()
-            _torch.save(_opp_full.policy, _buf)
-            opponent_policy_bytes = _buf.getvalue()
-            del _opp_full, _buf  # free memory before spawning subprocesses
-
-        # 2. Create vectorized environments
-        print(f"Creating {SELFPLAY_CONFIG['n_envs']} parallel environments...")
-        env_fns = [
-            make_env_fn(
-                cards_path=cards_path,
-                opponent_model_path=opponent_path,
-                opponent_policy_bytes=opponent_policy_bytes,
-                agent_player_idx=0,
-                rank=generation * 1000 + i,
-                max_turns=ENV_CONFIG["max_turns"],
-            )
-            for i in range(SELFPLAY_CONFIG['n_envs'])
-        ]
-
-        from stable_baselines3.common.vec_env import SubprocVecEnv
-        vec_env = SubprocVecEnv(env_fns)
-
-        # 3. Create or update agent model
-        ent_coef = compute_entropy_coef(generation)
-        print(f"Entropy coefficient: {ent_coef:.4f}")
-
-        if agent_model is None:
-            agent_model = create_agent_model(
-                vec_env,
-                features_dim=NETWORK_CONFIG["features_dim"],
-                learning_rate=compute_learning_rate(generation),
-                ent_coef=ent_coef,
-                device=PPO_CONFIG["device"],
-                tensorboard_log=LOG_DIR,
-            )
-        else:
-            agent_model.set_env(vec_env)
-            # ent_coef is a public attribute on OnPolicyAlgorithm — safe to
-            # modify between learn() calls; the loss computation reads it live.
-            agent_model.ent_coef = ent_coef
-            agent_model.learning_rate = compute_learning_rate(generation)
-            # Reassigning the scalar alone is a no-op: SB3 reads the LR to
-            # apply from `lr_schedule`, a closure built once at construction
-            # time. Rebuild it so the new value actually takes effect.
-            agent_model._setup_lr_schedule()
-
-        # 4. Train
-        print(f"Training for {SELFPLAY_CONFIG['steps_per_generation']:,} steps...")
-        agent_model.learn(
-            total_timesteps=SELFPLAY_CONFIG["steps_per_generation"],
-            reset_num_timesteps=False,
-            tb_log_name=f"gen_{generation}",
+    n_envs = SELFPLAY_CONFIG["n_envs"]
+    print(f"\nCreating {n_envs} persistent parallel environments...")
+    env_fns = [
+        make_env_fn(
+            cards_path=cards_path,
+            opponent_model_path=None,      # hot-swap handles opponent assignment
+            opponent_policy_bytes=None,    # start with random opponent
+            agent_player_idx=i % 2,        # alternate P0/P1 so agent sees both seats
+            rank=i,                        # envs persist — RNG states evolve naturally
+            max_turns=ENV_CONFIG["max_turns"],
+            shaping_gamma=ENV_CONFIG["shaping_gamma"],
         )
+        for i in range(n_envs)
+    ]
+    vec_env = SubprocVecEnv(env_fns)
+    _agent_model_needs_set_env = True  # track first-time set_env
 
-        # 5. Save checkpoint
-        checkpoint_path = os.path.join(
-            CHECKPOINT_DIR, f"agent_gen_{generation}.zip"
-        )
-        latest_path = os.path.join(CHECKPOINT_DIR, "agent_latest.zip")
-        agent_model.save(checkpoint_path)
-        agent_model.save(latest_path)
-        print(f"Saved checkpoint: {checkpoint_path}")
+    try:
+        # ---- Main training loop ----
+        for generation in range(start_gen, SELFPLAY_CONFIG["generations"]):
+            gen_start_time = time.time()
+            print(f"\n{'='*60}")
+            print(f"Generation {generation + 1}/{SELFPLAY_CONFIG['generations']}")
+            print(f"{'='*60}")
 
-        # ---- Free training environments BEFORE evaluation ----
-        # SubprocVecEnv workers consume ~20 processes and ~120MB RAM.
-        # Closing them here ensures ELO evaluation has maximum resources.
+            # 1. Sample opponent
+            opponent_entry = pool.sample(rng)
+            opponent_path = opponent_entry.path if opponent_entry else None
+            if opponent_entry:
+                print(f"Opponent: gen {opponent_entry.generation} "
+                      f"(ELO: {opponent_entry.elo:.0f})")
+            else:
+                print("Opponent: Random (no pool entries yet)")
+
+            # 1a. Serialise opponent policy to bytes (lightweight — no optimizer
+            #     state, no rollout buffer).  Deserialised in each worker via
+            #     set_opponent() (~6 MB per worker vs ~40 MB for full load).
+            opponent_policy_bytes: Optional[bytes] = None
+            if opponent_path is not None:
+                import io as _io
+                import torch as _torch
+                from sb3_contrib import MaskablePPO as _MaskablePPO
+                _opp_full = _MaskablePPO.load(opponent_path, device="cpu")
+                _buf = _io.BytesIO()
+                _torch.save(_opp_full.policy, _buf)
+                opponent_policy_bytes = _buf.getvalue()
+                del _opp_full, _buf  # free memory before pushing to workers
+
+            # 1b. Hot-swap opponent in all workers (no process respawn needed).
+            vec_env.env_method("set_opponent", opponent_policy_bytes)
+
+            # 2. Create or update agent model
+            ent_coef = compute_entropy_coef(generation)
+            print(f"Entropy coefficient: {ent_coef:.4f}")
+
+            if agent_model is None:
+                agent_model = create_agent_model(
+                    vec_env,
+                    features_dim=NETWORK_CONFIG["features_dim"],
+                    learning_rate=compute_learning_rate(generation),
+                    ent_coef=ent_coef,
+                    device=PPO_CONFIG["device"],
+                    tensorboard_log=LOG_DIR,
+                )
+                _agent_model_needs_set_env = False
+            else:
+                if _agent_model_needs_set_env:
+                    agent_model.set_env(vec_env)
+                    _agent_model_needs_set_env = False
+                agent_model.ent_coef = ent_coef
+                agent_model.learning_rate = compute_learning_rate(generation)
+                agent_model._setup_lr_schedule()
+
+            # 3. Train
+            print(f"Training for {SELFPLAY_CONFIG['steps_per_generation']:,} steps...")
+            agent_model.learn(
+                total_timesteps=SELFPLAY_CONFIG["steps_per_generation"],
+                reset_num_timesteps=False,
+                tb_log_name=f"gen_{generation}",
+            )
+
+            # 4. Save checkpoint
+            checkpoint_path = os.path.join(
+                CHECKPOINT_DIR, f"agent_gen_{generation}.zip"
+            )
+            latest_path = os.path.join(CHECKPOINT_DIR, "agent_latest.zip")
+            agent_model.save(checkpoint_path)
+            agent_model.save(latest_path)
+            print(f"Saved checkpoint: {checkpoint_path}")
+
+            # 5. Evaluate (workers remain alive but idle — they block on
+            #    SubprocVecEnv pipes with near-zero CPU usage during eval).
+            eval_result = evaluate_generation(
+                agent_model, pool, cards_path, generation, last_known_elo,
+                eval_interval_generations=SELFPLAY_CONFIG["eval_interval_generations"],
+                cheap_eval_games=SELFPLAY_CONFIG["cheap_eval_games"],
+                cheap_elo_k=SELFPLAY_CONFIG["cheap_elo_k"],
+                full_eval_games=max(20, SELFPLAY_CONFIG["eval_games"] // 2),
+            )
+            last_known_elo = eval_result["elo"]
+
+            # 6. Add to pool (remove any existing entry for this generation first)
+            pool.entries = [e for e in pool.entries if e.generation != generation]
+            pool.add(PoolEntry(
+                path=checkpoint_path,
+                generation=generation,
+                elo=eval_result["elo"],
+                win_rate_vs_prev=eval_result["win_rate_vs_prev"],
+                elo_source=eval_result["elo_source"],
+                win_rate_source=eval_result["win_rate_source"],
+            ))
+            pool.save_index(pool_index_path)
+
+            gen_time = time.time() - gen_start_time
+            print(f"Generation {generation} completed in {gen_time:.1f}s "
+                  f"({gen_time/60:.1f} min)")
+
+    finally:
+        # Ensure workers are cleaned up even if training is interrupted.
         vec_env.close()
-
-        # 6. Evaluate: a cheap real check every generation, plus a full
-        #    calibrated evaluation on eval_interval boundaries that
-        #    overwrites the cheap estimate. Never fabricate a number —
-        #    every value stored is either a real measurement or (only for
-        #    generation 0, no prior opponent exists) an explicit baseline.
-        eval_result = evaluate_generation(
-            agent_model, pool, cards_path, generation, last_known_elo,
-            eval_interval_generations=SELFPLAY_CONFIG["eval_interval_generations"],
-            cheap_eval_games=SELFPLAY_CONFIG["cheap_eval_games"],
-            cheap_elo_k=SELFPLAY_CONFIG["cheap_elo_k"],
-            full_eval_games=max(20, SELFPLAY_CONFIG["eval_games"] // 2),
-        )
-        last_known_elo = eval_result["elo"]
-
-        # 7. Add to pool (remove any existing entry for this generation first)
-        pool.entries = [e for e in pool.entries if e.generation != generation]
-        pool.add(PoolEntry(
-            path=checkpoint_path,
-            generation=generation,
-            elo=eval_result["elo"],
-            win_rate_vs_prev=eval_result["win_rate_vs_prev"],
-            elo_source=eval_result["elo_source"],
-            win_rate_source=eval_result["win_rate_source"],
-        ))
-        pool.save_index(pool_index_path)
-
-        gen_time = time.time() - gen_start_time
-        print(f"Generation {generation} completed in {gen_time:.1f}s "
-              f"({gen_time/60:.1f} min)")
 
     print(f"\n{'='*60}")
     print("Self-play training complete!")

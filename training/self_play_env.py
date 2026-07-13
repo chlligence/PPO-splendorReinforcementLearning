@@ -3,13 +3,14 @@
 Wraps SplendorEnv to auto-play the opponent's turns. Only the agent's
 transitions are returned via step(). Opponent transitions are otherwise
 discarded, except that if the opponent's move ends the game, its terminal
-reward (negated, since reward.py's terminal value is zero-sum from the
+reward (negated, since rewardcc.py's terminal value is zero-sum from the
 mover's perspective) is substituted for the agent's own stale pre-opponent
 reward — the game's real outcome is only observable from the last mover's
 step. This allows seamless integration with SB3's standard learn() loop.
 
-For SubprocVecEnv compatibility: pass opponent_model_path (string) rather
-than a loaded model. Each worker loads the model independently on init.
+For SubprocVecEnv compatibility: use hot-swap via set_opponent() rather
+than recreating environments each generation.  Workers are created once
+and persist across the entire training run.
 """
 
 import io as _io
@@ -59,6 +60,7 @@ class SelfPlayEnv(gym.Env):
         seed: Optional[int] = None,
         render_mode: Optional[str] = None,
         max_turns: int = 200,
+        shaping_gamma: float = 0.99,
     ):
         """Initialise the self-play environment.
 
@@ -76,6 +78,7 @@ class SelfPlayEnv(gym.Env):
             seed: Random seed for reproducibility.
             render_mode: Passed through to SplendorEnv.
             max_turns: Maximum turns before truncation (safety cap).
+            shaping_gamma: Discount factor for PBRS. MUST equal PPO_CONFIG["gamma"].
         """
         super().__init__()
         self.agent_idx = agent_player_idx
@@ -89,12 +92,16 @@ class SelfPlayEnv(gym.Env):
         # Load card data
         self.cards = load_cards(cards_path)
 
-        # Create inner environment — agent always starts as current_player at reset
+        # Create inner environment — P0 always starts first regardless of
+        # which seat the agent occupies.  This decouples seat assignment from
+        # turn order so the agent trains on both P0 (first) and P1 (second)
+        # positions, and the turn-flag feature sees both 0 and 1 in training.
         self.inner = SplendorEnv(
             self.cards,
             render_mode=render_mode,
-            starting_player=agent_player_idx,
+            starting_player=0,
             max_turns=max_turns,
+            shaping_gamma=shaping_gamma,
         )
 
         # Load opponent model if provided
@@ -160,8 +167,35 @@ class SelfPlayEnv(gym.Env):
             return get_action_mask(self.inner.state, self.inner.state.current_player)
         return np.ones(N_ACTIONS, dtype=bool)
 
+    def set_opponent(self, policy_bytes: Optional[bytes]):
+        """Hot-swap the opponent policy (called via vec_env.env_method).
+
+        Workers persist across generations — this avoids the 15–40 s of
+        process-spawn + import overhead per generation on Windows (spawn mode).
+
+        Args:
+            policy_bytes: Serialized policy module bytes (from torch.save),
+                or None to use a random-action opponent.
+        Returns:
+            True on success.
+        """
+        if policy_bytes is None:
+            self.opponent = None
+            return True
+        import torch as _torch
+        from training.feature_extractor import SplendorFeatureExtractor  # noqa: F401
+        self.opponent = _torch.load(
+            _io.BytesIO(policy_bytes), map_location="cpu", weights_only=False,
+        )
+        # Device fix-up (mirrors __init__): PyTorch ≥2.6 makes nn.Module.device
+        # read-only, so bypass via __dict__ if needed.
+        dev = self.opponent.__dict__.get("device", None)
+        if dev is not None and str(dev) != "cpu":
+            self.opponent.__dict__["device"] = "cpu"
+        return True
+
     def reset(self, seed=None, options=None):
-        """Reset the game. Agent starts first.
+        """Reset the game. P0 always starts first (decoupled from agent seat).
 
         Returns the agent's initial observation and info dict.
         """
@@ -199,9 +233,16 @@ class SelfPlayEnv(gym.Env):
                 # The opponent's move ended the game, so the real outcome
                 # only exists on the opponent's side of that step — the
                 # agent's own last `reward` above is just a stale dense
-                # shaping value from before the opponent moved. reward.py's
+                # shaping value from before the opponent moved. rewardcc.py's
                 # terminal value is zero-sum from the mover's perspective
-                # (+1/-1/0 for win/loss/draw), so negate it for the agent.
+                # (±10 for win/loss, 0 for draw), so negate it for the agent.
+                #
+                # IMPORTANT: this substitution relies on Φ being strictly
+                # anti-symmetric (Φ_opp = −Φ_agent).  If any non-relative term
+                # is ever added to Φ, this negation silently breaks.  The
+                # agent's own dense shaping from its last action is discarded
+                # here (overwritten, not added) — acceptable because the
+                # terminal ±10 dominates, but worth knowing.
                 reward = -opp_reward
 
         return obs, reward, terminated, truncated, info
@@ -219,10 +260,14 @@ class SelfPlayEnv(gym.Env):
         while (not self.inner.state.game_over
                and self.inner.state.current_player != self.agent_idx):
             opp_idx = self.inner.state.current_player
-            opp_obs = build_observation(self.inner.state, opp_idx)
             opp_mask = get_action_mask(self.inner.state, opp_idx)
 
             if self.opponent is not None:
+                # Build observation only when the opponent model needs it.
+                # Random opponents (including gen 0 and ~5% random_action
+                # branch) skip this — saves a 203-dim array construction
+                # and several normalisation steps per opponent turn.
+                opp_obs = build_observation(self.inner.state, opp_idx)
                 opp_action, _ = self.opponent.predict(
                     opp_obs,
                     action_masks=opp_mask,
@@ -262,6 +307,7 @@ def make_env_fn(
     agent_player_idx: int = 0,
     rank: int = 0,
     max_turns: int = 200,
+    shaping_gamma: float = 0.99,
 ):
     """Factory function for SubprocVecEnv.
 
@@ -272,11 +318,18 @@ def make_env_fn(
         agent_player_idx: Agent's player index.
         rank: Environment rank (used for seeding).
         max_turns: Maximum turns before truncation.
+        shaping_gamma: Discount factor for PBRS. MUST equal PPO_CONFIG["gamma"].
 
     Returns:
         A callable that creates a SelfPlayEnv.
     """
     def _init():
+        # Prevent thread oversubscription: 20 worker subprocesses each
+        # default to using all 24 CPU cores for single-sample forward passes.
+        # Limiting each worker to 1 thread avoids contention and actually
+        # improves throughput for this workload.
+        import torch as _torch
+        _torch.set_num_threads(1)
         return SelfPlayEnv(
             cards_path=cards_path,
             opponent_model_path=opponent_model_path,
@@ -284,5 +337,6 @@ def make_env_fn(
             agent_player_idx=agent_player_idx,
             seed=rank,
             max_turns=max_turns,
+            shaping_gamma=shaping_gamma,
         )
     return _init
