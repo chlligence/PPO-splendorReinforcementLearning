@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>璀璨宝石 · 人机对战</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>璀璨宝石 <span class="sub">人机对战</span></h1>
+    <div class="controls">
+      <label>
+        先手：
+        <select id="firstPlayerSelect">
+          <option value="true">我先手</option>
+          <option value="false">AI 先手</option>
+        </select>
+      </label>
+      <button id="newGameBtn">开始新的一局</button>
+      <button id="passBtn">过牌 (Pass)</button>
+    </div>
+  </header>
+
+  <div id="statusBar" class="status-bar"></div>
+
+  <div class="main-layout">
+    <main id="board" class="board"></main>
+    <aside id="gameLog" class="game-log">
+      <div class="game-log-header">📋 游戏日志</div>
+      <div id="gameLogEntries" class="game-log-entries"></div>
+    </aside>
+  </div>
+
+  <div id="overlay" class="overlay hidden">
+    <div class="overlay-card">
+      <div id="overlayTitle" class="overlay-title"></div>
+      <div id="overlayButtons" class="overlay-buttons"></div>
+      <button id="overlayCancel" class="overlay-cancel">取消</button>
+    </div>
+  </div>
+
+  <!-- Gem return overlay -->
+  <div id="returnOverlay" class="overlay hidden">
+    <div class="overlay-card return-overlay-card">
+      <div class="overlay-title">退还宝石</div>
+      <div id="returnInfo" class="return-info"></div>
+      <div id="returnGemSelection" class="return-gem-selection"></div>
+      <div id="returnStatus" class="return-status"></div>
+      <div class="overlay-buttons">
+        <button id="returnConfirmBtn" disabled>确认退还</button>
+      </div>
+      <button id="returnCancelBtn" class="overlay-cancel">取消</button>
+    </div>
+  </div>
+
+  <div id="gameOverBanner" class="game-over hidden">
+    <div class="game-over-card">
+      <div id="gameOverText"></div>
+      <button id="playAgainBtn">再来一局</button>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
