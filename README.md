@@ -5,6 +5,7 @@
 ---
 
 ## 快速开始
+直接开启与LATEST_GENERATION参数模型对战：  python webapp/server.py       -      http://127.0.0.1:5000      -       点击“开始新的一局”
 
 ### 训练环境要求
 
