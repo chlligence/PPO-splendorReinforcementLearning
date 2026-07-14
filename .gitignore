@@ -20,6 +20,9 @@ logs/
 .pytest_cache/
 .coverage
 htmlcov/
+cpu-setting.txt
+issue.txt
+issue2.txt
 
 # ── IDE / Editor ──
 .vscode/
